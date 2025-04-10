@@ -17,13 +17,13 @@ const port = 3001;
 const server = http.createServer(app); 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin: 'https://chat-game-frontend.vercel.app/',
     methods: ['GET', 'POST'],
     credentials: true,
   },
 });
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: 'https://chat-game-frontend.vercel.app/',
   credentials: true,
 }));
 
