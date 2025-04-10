@@ -1,22 +1,36 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+interface Participant {
+  username: string;
+  socketId: string;
+}
+
 export interface IChat extends Document {
-  participants: [string, string];
+  participants: [Participant, Participant];
   createdAt: Date;
   updatedAt: Date;
 }
 
-const chatSchema: Schema<IChat> = new Schema({
-  participants: {
-    type: [String],
-    required: true,
-    validate: [arrayLimit, '{PATH} must have exactly 2 participants'],
-  },
-}, { timestamps: true });
+const participantSchema = new Schema<Participant>({
+  username: { type: String, required: true },
+  socketId: { type: String, required: true },
+});
 
-function arrayLimit(val: string[]) {
+const chatSchema: Schema<IChat> = new Schema(
+  {
+    participants: {
+      type: [participantSchema],
+      validate: [arrayLimit,],
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+function arrayLimit(val: Participant[]) {
   return val.length === 2;
 }
 
 const ChatModel = mongoose.model<IChat>("Chat", chatSchema);
 export default ChatModel;
+

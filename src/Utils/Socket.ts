@@ -49,52 +49,48 @@ const configureSocket = (io: Server) => {
         console.log("Deleting chat:", chatId);
         socket.to(chatId).emit("message deleted", messageId);
       });
-      socket.on("end chat", async ({ chatId, opponent }) => {
+      socket.on("end chat", async ({ chatId, opponentPlayerId }) => {
         const player = players[socket.id];
         if (!player) return;
       
+        const opponentSocketId = Object.keys(players).find(
+          key => players[key].id === opponentPlayerId
+        );
+      
+        console.log("Resolved opponentSocketId:", opponentSocketId);
+      
         try {
-          const chatRes = await Chat.deleteOne({ _id: chatId });
-          const messageRes = await Message.deleteMany({ chat: chatId });
+          await Chat.deleteOne({ _id: chatId });
+          await Message.deleteMany({ chat: chatId });
       
-          console.log(
-            `Chat ${chatId} ended by ${player.name}. Deleted ${chatRes.deletedCount} chat, ${messageRes.deletedCount} messages.`
-          );
-      
-          const opponentSocketId = Object.keys(players).find(
-            key => players[key].name === opponent
-          );
-      
-          if (opponentSocketId) {
-            io.to(opponentSocketId).emit("chat list update", {
-              user1: player.name,
-              user2: opponent,
-              reason: "chat ended",
-              message: `${player.name} ended the chat.`,
-            });
-          
+          if (opponentSocketId && players[opponentSocketId]) {
             io.to(opponentSocketId).emit("chat ended", {
               chatId,
               message: `${player.name} ended the chat.`,
-              endedBy: player.name,
+              endedBy: player.id,
             });
+          
+            setTimeout(() => {
+              io.to(opponentSocketId).emit("chat list update", {
+                user1: player.id,
+                user2: opponentPlayerId,
+                reason: "chat ended",
+                message: `${player.name} ended the chat.`,
+              });
+            }, 3000);
           }
           
           io.to(socket.id).emit("chat ended", {
             chatId,
-            message: `You ended the chat with ${opponent}.`,
-            endedBy: player.name,
+            message: `You ended the chat.`,
+            endedBy: player.id,
           });
-          
       
-        } catch (error) {
-          console.error("Error ending chat:", error);
-          io.to(socket.id).emit("error", {
-            message: "Failed to end chat. Try again later.",
-          });
+        } catch (err) {
+          console.error("Error ending chat:", err);
         }
       });
-      
+ 
 
       socket.on("playerLeft", async () => {
         const player = players[socket.id];
@@ -105,7 +101,8 @@ const configureSocket = (io: Server) => {
       
         if (player?.id && player?.name) {
           try {
-            const chatsToDelete = await Chat.find({ participants: player.name });
+            const chatsToDelete = await Chat.find({ "participants.socketId": player.id });
+            
             const chatIds = chatsToDelete.map(chat => chat._id);
       
             const chatRes = await Chat.deleteMany({ _id: { $in: chatIds } });
@@ -113,30 +110,28 @@ const configureSocket = (io: Server) => {
             const senderRes = await Message.deleteMany({ sender: player.id });
       
             console.log(
-              `Deleted ${chatRes.deletedCount} chat(s), ${messageRes.deletedCount} message(s), ${senderRes.deletedCount} from ${player.name}`
+              `Deleted ${chatRes.deletedCount} chat(s), ${messageRes.deletedCount} message(s), ${senderRes.deletedCount} from ${player.id}`
             );
       
             for (const chat of chatsToDelete) {
-              const opponent = chat.participants.find(p => p !== player.name);
-      
-              const opponentSocketId = Object.keys(players).find(
-                key => players[key].name === opponent
-              );
-      
+                const opponent = chat.participants.find(p => p.socketId !== player.id);
+                const opponentSocketId = Object.keys(players).find(
+                    key => players[key].id === opponent?.socketId
+                  );
               if (opponentSocketId) {
                 io.to(opponentSocketId).emit("chat list update", {
-                  user1: player.name,
-                  user2: opponent,
+                  user1: player.id,
+                  user2: opponent?.socketId,
                 });
                 io.to(opponentSocketId).emit("opponentLeft", {
-                    opponent: player.name,
+                    opponent: player.id,
                     message: `${player.name} has left the chat.`,
                   });
               }
             }
       
             io.to(socket.id).emit("chat list update", {
-                user1: player.name,
+                user1: player.id,
                 user2: null,
                 reason: "player left",
               });
@@ -147,11 +142,6 @@ const configureSocket = (io: Server) => {
           }
         }
       });
-      
-      
-      
-      
-      
 
       socket.on("disconnect", async () => {
         console.log(`Player ${socket.id} disconnected`);
@@ -162,7 +152,7 @@ const configureSocket = (io: Server) => {
       
         if (player?.id && player?.name) {
           try {
-            const chatsToDelete = await Chat.find({ participants: player.name });
+            const chatsToDelete = await Chat.find({ "participants.socketId": player.id });
             const chatIds = chatsToDelete.map(chat => chat._id);
       
             const chatRes = await Chat.deleteMany({ _id: { $in: chatIds } });
@@ -174,28 +164,28 @@ const configureSocket = (io: Server) => {
             );
       
             for (const chat of chatsToDelete) {
-              const opponent = chat.participants.find(p => p !== player.name);
-              const opponentSocketId = Object.keys(players).find(
-                key => players[key].name === opponent
-              );
+                const opponent = chat.participants.find(p => p.socketId !== player.id);
+                const opponentSocketId = Object.keys(players).find(
+                    key => players[key].id === opponent?.socketId
+                  );
       
               if (opponentSocketId) {
                 io.to(opponentSocketId).emit("chat list update", {
-                  user1: player.name,
-                  user2: opponent,
+                  user1: player.id,
+                  user2: opponent?.socketId,
                 });
                 io.to(opponentSocketId).emit("opponentLeft", {
-                    opponent: player.name,
+                    opponent: player.id,
                     message: `${player.name} has left the chat.`,
                   });
               }
             }
       
-            socket.emit("chat list update", {
-              user1: player.name,
-              user2: null,
-              reason: "player left",
-            });
+            io.to(socket.id).emit("chat list update", {
+                user1: player.id,
+                user2: null,
+                reason: "player left",
+              });
       
           } catch (err) {
             console.error("Error deleting player data:", err);

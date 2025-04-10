@@ -3,10 +3,10 @@ import messageService from "../Service/MessageService";
 
 const sendMessage = async (req: Request, res: Response) => {
 try {
-    const { chatId, username, message } = req.body;
+    const { chatId, socketId, message } = req.body;
     console.log("ASFf",req.body);
     
-    const response = await messageService.sendMessageService(chatId, username, message);
+    const response = await messageService.sendMessageService(chatId, socketId, message);
      res.status(200).json(response);
 } catch (error) {
     console.error("Error sending chats",error); 

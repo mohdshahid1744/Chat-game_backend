@@ -1,11 +1,11 @@
 import MessageRespository from "../Repository/MessageRespository";
-const sendMessageService = async (chatId: string, username: string, message: string) => {
+const sendMessageService = async (chatId: string, socketId: string, message: string) => {
     try {
       if (!message?.trim()) {
         throw new Error("Message cannot be empty");
       }
   
-      const sentMessage = await MessageRespository.sendMessage(chatId, username, message);
+      const sentMessage = await MessageRespository.sendMessage(chatId, socketId, message);
       return sentMessage;
   
     } catch (error) {
