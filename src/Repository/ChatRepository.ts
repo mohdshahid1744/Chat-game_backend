@@ -6,10 +6,16 @@ const createChat = async (
   ) => {
     try {
       const existingChat = await ChatModel.findOne({
-        "participants.username": { $all: [user1.socketId, user2.socketId] },
+        $and: [
+          { "participants.socketId": user1.socketId },
+          { "participants.socketId": user2.socketId },
+        ],
       });
+      
   
       if (existingChat) {
+        console.log("Chat already exist");
+        
         return {
           success: true,
           chatId: existingChat._id,
