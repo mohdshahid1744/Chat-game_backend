@@ -21,7 +21,6 @@ const io = new SocketIOServer(server, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
-    transports: ["websocket"],
 });
 app.use(cors({
   origin: 'https://chat-game-frontend.vercel.app',
